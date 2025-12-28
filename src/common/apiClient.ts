@@ -1,20 +1,27 @@
 /**
- * Generic AI provider API client utilities
+ * Unified AI provider client using Vercel AI SDK
  */
 
-import OpenAI from "openai";
+import { createOpenAI } from "@ai-sdk/openai";
 import { xai } from "@ai-sdk/xai";
 import { generateText } from "ai";
 
-import { 
-  OPENAI_API_KEY, 
-  validateProvider, 
-  getDefaultProvider,
-  type AIProvider, 
-  type ReasoningEffort 
+import {
+  OPENAI_API_KEY,
+  XAI_API_KEY,
+  validateProvider,
+  type AIProvider,
+  type ReasoningEffort,
 } from "./providerConfig.js";
-import { formatTokenInfo, type TokenUsage } from "./tokenFormatter.js";
-import { buildUserPrompt, type PromptConfig } from "./promptBuilder.js";
+import { formatTokenInfo } from "./tokenFormatter.js";
+import { buildUserPrompt } from "./promptBuilder.js";
+
+// Model defaults with env overrides
+const XAI_MODEL = process.env.XAI_MODEL || "grok-4.1";
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.2";
+
+// Provider clients
+const openai = createOpenAI({ apiKey: OPENAI_API_KEY });
 
 export interface AICallConfig {
   systemPrompt: string;
@@ -25,7 +32,29 @@ export interface AICallConfig {
   provider: AIProvider;
 }
 
-async function callXaiProvider(config: AICallConfig): Promise<string> {
+const providers = {
+  xai: {
+    model: () => xai(XAI_MODEL),
+    mapOptions: (effort: ReasoningEffort) => ({
+      xai: { reasoningEffort: effort },
+    }),
+  },
+  openai: {
+    model: () => openai(OPENAI_MODEL),
+    mapOptions: (effort: ReasoningEffort) => ({
+      openai: { reasoningEffort: effort },
+    }),
+  },
+} as const;
+
+export async function callAIProvider(config: AICallConfig): Promise<string> {
+  validateProvider(config.provider);
+
+  const provider = providers[config.provider];
+  if (!provider) {
+    throw new Error(`Unsupported provider: ${config.provider}`);
+  }
+
   const userPrompt = buildUserPrompt({
     task: config.task,
     code: config.code,
@@ -33,61 +62,18 @@ async function callXaiProvider(config: AICallConfig): Promise<string> {
   });
 
   const result = await generateText({
-    model: xai("grok-4"),
+    model: provider.model(),
     messages: [
       { role: "system", content: config.systemPrompt },
       { role: "user", content: userPrompt },
     ],
-    // Note: xAI doesn't support reasoningEffort parameter
+    providerOptions: provider.mapOptions(config.reasoningEffort),
   });
 
-  const tokenInfo = formatTokenInfo("xai", result.usage, config.reasoningEffort);
+  const tokenInfo = formatTokenInfo(
+    config.provider,
+    result.usage,
+    config.reasoningEffort
+  );
   return result.text + tokenInfo;
-}
-
-async function callOpenAIProvider(config: AICallConfig): Promise<string> {
-  const openai = new OpenAI({
-    apiKey: OPENAI_API_KEY,
-  });
-
-  const userPrompt = buildUserPrompt({
-    task: config.task,
-    code: config.code,
-    analysisType: config.analysisType,
-  });
-
-  const response = await openai.chat.completions.create({
-    model: "gpt-5",
-    messages: [
-      { role: "system", content: config.systemPrompt },
-      { role: "user", content: userPrompt },
-    ],
-    reasoning_effort: config.reasoningEffort as any, // GPT-5 supports this
-  });
-
-  const assistantMessage = response.choices?.[0]?.message?.content ?? "No response from model.";
-  const usage: TokenUsage = {
-    totalTokens: (response.usage as any)?.total_tokens,
-    reasoning_tokens: (response.usage as any)?.reasoning_tokens,
-  };
-
-  const tokenInfo = formatTokenInfo("openai", usage, config.reasoningEffort);
-  return assistantMessage + tokenInfo;
-}
-
-export async function callAIProvider(config: AICallConfig): Promise<string> {
-  validateProvider(config.provider);
-
-  if (config.provider === "xai") {
-    // xAI doesn't support reasoning_effort, so create config without it
-    const xaiConfig = {
-      ...config,
-      reasoningEffort: undefined as any // Remove for xAI
-    };
-    return callXaiProvider(xaiConfig);
-  } else if (config.provider === "openai") {
-    return callOpenAIProvider(config);
-  } else {
-    throw new Error(`Unsupported provider: ${config.provider}`);
-  }
 }

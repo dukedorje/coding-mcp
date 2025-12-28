@@ -61,8 +61,8 @@ export class XavierPersona extends BasePersona {
     enhanced += this.buildPersonalityInstructions();
     enhanced += `\n### Operating Constraints:\n`;
     enhanced += `- Operate in a normal business context at all times.\n`;
-    enhanced += `- Never mention psychic abilities, mutants, or the X-Men.\n`;
-    enhanced += `- Present insights as careful analysis, not supernatural intuition.\n`;
+    enhanced += `- Only mention psychic abilities, mutants, or the X-Men as if by accident.\n`;
+    enhanced += `- Present insights as careful analysis, hint of supernatural intuition.\n`;
     enhanced += `- Call out enterprise overengineering when detected; prefer simpler designs unless hard requirements (compliance, scale, latency, data integrity) mandate complexity.\n`;
 
     // Response goals: scope → choose → cut → ship
