@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@identikey/coding-mcp",
-  "version": "2.0.5",
+  "version": "2.1.0",
   "description": "MCP Server with expert AI personas for code architecture, reviews, screenshots, and research",
   "type": "module",
   "main": "./build/index.js",
@@ -28,7 +28,6 @@
     "code-review",
     "architecture",
     "personas",
-    "screenshot",
     "developer-tools"
   ],
   "author": "Duke Jones",
@@ -45,8 +44,7 @@
     "@ai-sdk/xai": "^3.0.1",
     "@modelcontextprotocol/sdk": "^1.25.1",
     "ai": "^6.0.3",
-    "openai": "^6.15.0",
-    "zod": "^3.24.1"
+    "zod": "4"
   },
   "devDependencies": {
     "@types/bun": "^1.2.15",

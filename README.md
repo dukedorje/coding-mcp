@@ -1,163 +1,159 @@
+# @identikey/coding-mcp
 
+MCP server with expert AI personas for architecture reviews, code advice, and research. Runs as a tool server in Cursor, Windsurf, or any MCP-compatible client.
 
-## How Users Run It
-folks can use it in their MCP config like:
+## Quick Start
 
-**Cursor Settings → MCP → Add Server:**
-- **Command**: `npx`
-- **Args**: `-y`, `@identikey/coding-mcp`
+Add to your MCP config (e.g., `.cursor/mcp.json`):
 
-Or in `.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
     "coding-mcp": {
       "command": "npx",
-      "args": ["-y", "@identikey/coding-mcp"]
+      "args": ["-y", "@identikey/coding-mcp"],
+      "env": {
+        "XAI_API_KEY": "your-xai-key",
+        "OPENAI_API_KEY": "your-openai-key"
+      }
     }
   }
 }
 ```
 
-The server spawns as a child process, Cursor talks JSON-RPC over stdin/stdout, and all your tool logs go to stderr where they belong. Clean af.
+Or via Cursor Settings → MCP → Add Server.
 
-# 🤖 Cursor Tools MCP Server
+### Environment Variables
 
-An MCP (Model Context Protocol) server providing powerful tools with expert personas for intelligent assistance:
+| Variable         | Required | Description                                          |
+| ---------------- | -------- | ---------------------------------------------------- |
+| `XAI_API_KEY`    | Yes\*    | xAI/Grok API key ([get one](https://console.x.ai))   |
+| `OPENAI_API_KEY` | Yes\*    | OpenAI API key (for GPT-5 reasoning)                 |
+| `AI_PROVIDER`    | No       | Default provider: `xai` or `openai` (default: `xai`) |
+| `XAI_MODEL`      | No       | xAI model override (default: `grok-4.1`)             |
+| `OPENAI_MODEL`   | No       | OpenAI model override (default: `gpt-5.2`)           |
 
-## Core Tools
-- **Ask**: Natural language queries automatically routed to the best expert
-- **Discover**: Explore available expert personas and their specialties
-- **Persona**: Direct access to specific expert personas
-- **Screenshot**: Capture screenshots from URLs
-- **Architect**: Comprehensive architectural code reviews
-- **Code Review**: Git diff analysis and improvement suggestions
+\*At least one API key required. The server auto-selects providers based on task type—xAI for quick advice, OpenAI for deep reasoning.
 
-## ✨ Features
+### Using bunx
 
-### 🎨 Code Architect
-
-Call advanced reasoning LLMs to generate plans and instructions for coding agents.
-
-### 📸 Screenshot Buddy
-
-Take UI design screenshots and use them with the composer agent.
-
-### 🔍 Code Review
-
-Use git diffs to trigger code reviews.
-
-### 🎭 Persona System
-
-Transform AI responses with distinct personalities:
-- **Charles**: Pragmatic architect for startups/growth-stage (builds for 10x not 1000x, calls out over-engineering)
-- **Sterling**: Enterprise architect for legacy systems (zero-downtime, compliance, multi-team coordination)
-- **Ada**: Performance engineer focused on algorithms and optimization
-- **Atlas**: Backend/API strategist for contract-first development
-- **Hermes**: DevOps/SRE expert for pipelines and observability
-- **Sentinel**: Security architect for threat modeling and compliance
-- **Iris**: Frontend specialist for accessibility and design systems
-- **Xavier**: MVP-focused developer for shipping fast (KISS principle)
-
-### 📊 Code Advice
-
-Get focused guidance on specific coding problems.
-
-### 🔬 Researcher
-
-Deep-dive analysis for complex technical questions.
-
-## 🚀 Getting Started
-
-### 1. Environment Setup
-
-First, you'll need to set up your environment variables. Create a file at `src/env/keys.ts`:
-
-```typescript
-export const OPENAI_API_KEY = "your_key_here";
-// Add any other keys you need
+```json
+{
+  "mcpServers": {
+    "coding-mcp": {
+      "command": "bunx",
+      "args": ["@identikey/coding-mcp"],
+      "env": {
+        "XAI_API_KEY": "your-xai-key"
+      }
+    }
+  }
+}
 ```
 
-> ⚠️ **Security Note**: Storing API keys directly in source code is not recommended for production environments. This is only for local development and learning purposes. You can set the env var inline in the Cursor MCP interface as well.
+## Tools
 
-### 2. Installation
+### `ask`
+
+Natural language queries auto-routed to the best expert persona. Just ask—it figures out who should answer.
+
+```
+"How should I structure this React app?"  → routes to Iris (frontend)
+"Is this auth implementation secure?"     → routes to Sentinel (security)
+"Review this API design"                  → routes to Atlas (backend)
+```
+
+### `architect`
+
+Deep architectural review with reasoning. Pass code + task description, get structured analysis.
+
+### `code-review`
+
+Git diff analysis. Point it at a repo, get review of changes vs main branch.
+
+### `code-advice`
+
+Quick, focused guidance on specific problems. Lower latency than full architect review.
+
+### `researcher`
+
+Multi-source research with citations. Searches across Google, arXiv, GitHub, StackExchange, etc.
+
+### `persona`
+
+Direct access to a specific expert. Skip auto-routing when you know who you want.
+
+### `discover`
+
+List available personas and their specialties.
+
+
+## Personas
+
+| Persona      | Focus                    | Style                                              |
+| ------------ | ------------------------ | -------------------------------------------------- |
+| **Charles**  | Pragmatic architecture   | Anti-enterprise, ships fast, calls out YAGNI       |
+| **Sterling** | Enterprise systems       | Zero-downtime, compliance, multi-team coordination |
+| **Ada**      | Algorithms & performance | Big-O, profiling, optimization                     |
+| **Atlas**    | Backend & APIs           | Contract-first, database design, caching           |
+| **Hermes**   | DevOps & SRE             | CI/CD, observability, Kubernetes                   |
+| **Sentinel** | Security                 | Threat modeling, auth, compliance                  |
+| **Iris**     | Frontend & UX            | Accessibility, design systems, React/Vue           |
+| **Xavier**   | MVP development          | KISS, ship it, avoid yak shaving                   |
+
+## Development
 
 ```bash
-npm install
-# or
-yarn install
+# Install deps
+bun install
+
+# Build
+bun run build
+
+# Test
+bun test
+
+# Run locally (for testing)
+bun run start
 ```
 
-### 3. Build the Server
+### Local MCP Config
 
-```bash
-npm run build
+For development, point to your local build:
+
+```json
+{
+  "mcpServers": {
+    "coding-mcp-dev": {
+      "command": "node",
+      "args": ["/path/to/coding-mcp/build/index.js"],
+      "env": {
+        "XAI_API_KEY": "your-key"
+      }
+    }
+  }
+}
 ```
 
-### 4. Adding to Cursor
-
-This project is designed to be used as an MCP server in Cursor. Here's how to set it up:
-
-1. Open Cursor
-2. Go to `Cursor Settings > Features > MCP`
-3. Click `+ Add New MCP Server`
-4. Fill out the form:
-   - **Name**: AI Development Assistant
-   - **Type**: stdio
-   - **Command**: `node /path/to/your/project/dist/index.js`
-
-> 📘 **Pro Tip**: You might need to use the full path to your project's built index.js file.
-
-After adding the server, you should see your tools listed under "Available Tools". If not, try clicking the refresh button in the top right corner of the MCP server section.
-
-For more details about MCP setup, check out the [Cursor MCP Documentation](https://docs.cursor.com/advanced/model-context-protocol).
-
-## 🛠️ Using the Tools
-
-Once configured, you can use these tools directly in Cursor's Composer. The AI will automatically suggest using relevant tools, or you can explicitly request them by name or description.
-
-For example, try typing in Composer:
-
-- "Review this code for best practices"
-- "Help me architect a new feature"
-- "Analyze this UI screenshot"
-
-The agent will ask for your approval before making any tool calls.
-
-> 📘 **Pro Tip**: You can update your .cursorrules file with instructions on how to use the tools for certain scenarios, and the agent will use the tools automatically.
-
-## 📁 Project Structure
+### Project Structure
 
 ```
 src/
-├── tools/
-│   ├── architect.ts    # Code structure generator
-│   ├── screenshot.ts   # Screenshot analysis tool
-│   └── codeReview.ts   # Code review tool
-├── env/
-│   └── keys.ts         # Environment configuration (add your API keys here!)
-└── index.ts           # Main entry point
+├── index.ts              # MCP server entry
+├── common/
+│   ├── apiClient.ts      # Unified AI provider client
+│   ├── providerConfig.ts # Env vars, provider selection
+│   └── ...
+├── personas/
+│   ├── charles/          # Each persona has its own module
+│   ├── sterling/
+│   └── ...
+└── tools/
+    ├── ask.ts            # Smart routing
+    ├── architect.ts      # Deep review
+    └── ...
 ```
 
-## 🤝 Contributing
+## License
 
-Contributions welcome! Please feel free to submit a Pull Request.
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🐛 Issues & Support
-
-Found a bug or need help? Open an issue with:
-
-1. What you were trying to do
-2. What happened instead
-3. Steps to reproduce
-4. Your environment details
-
----
-
-I'll be honest though, this is a tutorial demo, and not a production-ready tool so I likely won't be fixing issues. But feel free to fork it and make it your own!
-
-Made with ❤️ by developers, for developers
+MIT

@@ -7,13 +7,6 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import {
-  screenshotToolName,
-  screenshotToolDescription,
-  ScreenshotToolSchema,
-  runScreenshotTool,
-} from "./tools/screenshot.js";
-
-import {
   architectToolName,
   architectToolDescription,
   ArchitectToolSchema,
@@ -74,8 +67,7 @@ import "./personas/iris/index.js";
 
 /**
  * MCP server providing Cursor Tools:
- *   1) Screenshot
- *   2) Architect
+ *   1) Architect
  *   3) CodeReview
  *   4) CodeAdvice
  *   5) Researcher
@@ -88,7 +80,7 @@ import "./personas/iris/index.js";
 const server = new Server(
   {
     name: "cursor-tools",
-    version: "2.0.5",
+    version: "2.1.0",
   },
   {
     capabilities: {
@@ -101,29 +93,6 @@ const server = new Server(
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
-      {
-        name: screenshotToolName,
-        description: screenshotToolDescription,
-        inputSchema: {
-          type: "object",
-          properties: {
-            url: {
-              type: "string",
-              description: "Full URL to screenshot",
-            },
-            relativePath: {
-              type: "string",
-              description: "Relative path appended to http://localhost:3000",
-            },
-            fullPathToScreenshot: {
-              type: "string",
-              description:
-                "Path to where the screenshot file should be saved. This should be a cwd-style full path to the file (not relative to the current working directory) including the file name and extension.",
-            },
-          },
-          required: [],
-        },
-      },
       {
         name: architectToolName,
         description: architectToolDescription,
@@ -352,10 +321,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   switch (name) {
-    case screenshotToolName: {
-      const validated = ScreenshotToolSchema.parse(args);
-      return await runScreenshotTool(validated);
-    }
     case architectToolName: {
       const validated = ArchitectToolSchema.parse(args);
       return await runArchitectTool(validated);

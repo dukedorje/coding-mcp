@@ -4,20 +4,20 @@
  */
 
 import { CallToolRequest } from "@modelcontextprotocol/sdk/types.js";
-import { 
-  ToolCommand, 
-  CommandContext, 
+import {
+  ToolCommand,
+  CommandContext,
   ToolExecutionResult,
   ToolNotFoundError,
   ToolValidationError,
   ToolExecutionError,
   ToolTimeoutError,
   ToolError,
-  MCPToolResponse
-} from './ToolCommand.js';
-import { ToolRegistry } from './ToolRegistry.js';
-import { eventBus, type EventBus } from '../infra/eventBus.js';
-import { ZodError } from 'zod';
+  MCPToolResponse,
+} from "./ToolCommand.js";
+import { ToolRegistry } from "./ToolRegistry.js";
+import { eventBus, type EventBus } from "../infra/eventBus.js";
+import { ZodError } from "zod";
 
 export interface DispatcherConfig {
   /** Default execution timeout in milliseconds */
@@ -32,7 +32,10 @@ export class CommandDispatcher {
   private readonly registry: ToolRegistry;
   private readonly eventBus: EventBus;
   private readonly config: Required<DispatcherConfig>;
-  private activeExecutions = new Map<string, { toolName: string; startTime: number }>();
+  private activeExecutions = new Map<
+    string,
+    { toolName: string; startTime: number }
+  >();
   private executionCounter = 0;
 
   constructor(
@@ -45,7 +48,7 @@ export class CommandDispatcher {
     this.config = {
       defaultTimeout: config.defaultTimeout || 30000, // 30 seconds
       enableTracing: config.enableTracing ?? true,
-      maxConcurrentExecutions: config.maxConcurrentExecutions || 10
+      maxConcurrentExecutions: config.maxConcurrentExecutions || 10,
     };
   }
 
@@ -62,7 +65,7 @@ export class CommandDispatcher {
       if (this.activeExecutions.size >= this.config.maxConcurrentExecutions) {
         throw new ToolError(
           `Maximum concurrent executions (${this.config.maxConcurrentExecutions}) reached`,
-          'RESOURCE_ERROR',
+          "RESOURCE_ERROR",
           toolName
         );
       }
@@ -77,34 +80,41 @@ export class CommandDispatcher {
       this.activeExecutions.set(requestId, { toolName, startTime });
 
       // Emit execution start event
-      this.eventBus.emit('tool:execute:start', {
+      this.eventBus.emit("tool:execute:start", {
         name: toolName,
         requestId,
-        args
+        args,
       });
 
       // Execute the tool with timeout
-      const result = await this.executeWithTimeout(tool, args, requestId, startTime);
+      const result = await this.executeWithTimeout(
+        tool,
+        args,
+        requestId,
+        startTime
+      );
 
       // Clean up active execution tracking
       this.activeExecutions.delete(requestId);
 
       // Emit execution end event
       const executionTime = Date.now() - startTime;
-      this.eventBus.emit('tool:execute:end', {
+      this.eventBus.emit("tool:execute:end", {
         name: toolName,
         requestId,
         success: result.success,
-        executionTime
+        executionTime,
       });
 
       // Return MCP-compatible response
       if (result.success && result.result) {
         return this.formatMCPResponse(result.result);
       } else {
-        throw result.error || new ToolExecutionError(toolName, 'Unknown execution error');
+        throw (
+          result.error ||
+          new ToolExecutionError(toolName, "Unknown execution error")
+        );
       }
-
     } catch (error) {
       // Clean up active execution tracking
       this.activeExecutions.delete(requestId);
@@ -113,19 +123,19 @@ export class CommandDispatcher {
       const toolError = this.normalizeError(error, toolName);
 
       // Emit error event
-      this.eventBus.emit('tool:error', {
+      this.eventBus.emit("tool:error", {
         name: toolName,
         error: toolError,
-        requestId
+        requestId,
       });
 
       // Emit execution end event with failure
       const executionTime = Date.now() - startTime;
-      this.eventBus.emit('tool:execute:end', {
+      this.eventBus.emit("tool:execute:end", {
         name: toolName,
         requestId,
         success: false,
-        executionTime
+        executionTime,
       });
 
       // Return error response in MCP format
@@ -151,11 +161,17 @@ export class CommandDispatcher {
         if (error instanceof ZodError) {
           throw new ToolValidationError(
             tool.name,
-            `Invalid arguments: ${error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`,
+            `Invalid arguments: ${error.issues
+              .map((e) => `${e.path.join(".")}: ${e.message}`)
+              .join(", ")}`,
             error
           );
         }
-        throw new ToolValidationError(tool.name, 'Failed to validate arguments', error as Error);
+        throw new ToolValidationError(
+          tool.name,
+          "Failed to validate arguments",
+          error as Error
+        );
       }
 
       // Create execution context
@@ -163,11 +179,13 @@ export class CommandDispatcher {
         eventBus: this.eventBus,
         requestId,
         startTime,
-        config: tool.metadata?.constraints
+        config: tool.metadata?.constraints,
       };
 
       // Determine timeout (tool-specific or default)
-      const timeout = tool.metadata?.constraints?.maxExecutionTime || this.config.defaultTimeout;
+      const timeout =
+        tool.metadata?.constraints?.maxExecutionTime ||
+        this.config.defaultTimeout;
 
       // Execute with timeout
       const result = await this.withTimeout(
@@ -183,10 +201,9 @@ export class CommandDispatcher {
         metadata: {
           toolName: tool.name,
           version: tool.version,
-          requestId
-        }
+          requestId,
+        },
       };
-
     } catch (error) {
       return {
         success: false,
@@ -195,8 +212,8 @@ export class CommandDispatcher {
         metadata: {
           toolName: tool.name,
           version: tool.version,
-          requestId
-        }
+          requestId,
+        },
       };
     }
   }
@@ -244,10 +261,15 @@ export class CommandDispatcher {
 
     // Convert to MCP format
     return {
-      content: [{
-        type: "text",
-        text: typeof result === 'string' ? result : JSON.stringify(result, null, 2)
-      }]
+      content: [
+        {
+          type: "text",
+          text:
+            typeof result === "string"
+              ? result
+              : JSON.stringify(result, null, 2),
+        },
+      ],
     };
   }
 
@@ -255,15 +277,19 @@ export class CommandDispatcher {
    * Format error as MCP response
    */
   private formatErrorResponse(error: ToolError): MCPToolResponse {
-    const errorMessage = this.config.enableTracing 
-      ? `${error.message}\n\nError Code: ${error.code}\nTool: ${error.toolName || 'unknown'}`
+    const errorMessage = this.config.enableTracing
+      ? `${error.message}\n\nError Code: ${error.code}\nTool: ${
+          error.toolName || "unknown"
+        }`
       : error.message;
 
     return {
-      content: [{
-        type: "text",
-        text: `Error: ${errorMessage}`
-      }]
+      content: [
+        {
+          type: "text",
+          text: `Error: ${errorMessage}`,
+        },
+      ],
     };
   }
 
@@ -272,9 +298,9 @@ export class CommandDispatcher {
    */
   private isMCPResponse(result: unknown): boolean {
     return (
-      typeof result === 'object' &&
+      typeof result === "object" &&
       result !== null &&
-      'content' in result &&
+      "content" in result &&
       Array.isArray((result as any).content)
     );
   }
@@ -289,7 +315,10 @@ export class CommandDispatcher {
   /**
    * Get active executions for monitoring
    */
-  getActiveExecutions(): ReadonlyMap<string, { toolName: string; startTime: number }> {
+  getActiveExecutions(): ReadonlyMap<
+    string,
+    { toolName: string; startTime: number }
+  > {
     return new Map(this.activeExecutions);
   }
 
@@ -308,14 +337,17 @@ export class CommandDispatcher {
       activeExecutions: this.activeExecutions.size,
       totalExecutions: this.executionCounter,
       averageExecutionTime: 0, // Would need history tracking
-      errorRate: 0 // Would need error tracking
+      errorRate: 0, // Would need error tracking
     };
   }
 
   /**
    * Create dispatcher with default configuration
    */
-  static create(registry: ToolRegistry, config?: DispatcherConfig): CommandDispatcher {
+  static create(
+    registry: ToolRegistry,
+    config?: DispatcherConfig
+  ): CommandDispatcher {
     return new CommandDispatcher(registry, eventBus, config);
   }
 }
