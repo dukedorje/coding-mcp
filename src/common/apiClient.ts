@@ -3,7 +3,7 @@
  */
 
 import { createOpenAI } from "@ai-sdk/openai";
-import { xai } from "@ai-sdk/xai";
+import { createXai } from "@ai-sdk/xai";
 import { generateText } from "ai";
 
 import {
@@ -17,11 +17,29 @@ import { formatTokenInfo } from "./tokenFormatter.js";
 import { buildUserPrompt } from "./promptBuilder.js";
 
 // Model defaults with env overrides
-const XAI_MODEL = process.env.XAI_MODEL || "grok-4.1";
+const XAI_MODEL = process.env.XAI_MODEL || "grok-4-1-fast-reasoning";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.2";
 
-// Provider clients
-const openai = createOpenAI({ apiKey: OPENAI_API_KEY });
+// Provider client instances (lazy initialization)
+let openaiClient: ReturnType<typeof createOpenAI> | null = null;
+let xaiClient: ReturnType<typeof createXai> | null = null;
+
+function getOpenAIClient() {
+  if (!openaiClient) {
+    openaiClient = createOpenAI({ apiKey: OPENAI_API_KEY });
+  }
+  return openaiClient;
+}
+
+function getXaiClient() {
+  if (!xaiClient) {
+    if (!XAI_API_KEY) {
+      throw new Error("XAI_API_KEY environment variable is required");
+    }
+    xaiClient = createXai({ apiKey: XAI_API_KEY });
+  }
+  return xaiClient;
+}
 
 export interface AICallConfig {
   systemPrompt: string;
@@ -34,13 +52,11 @@ export interface AICallConfig {
 
 const providers = {
   xai: {
-    model: () => xai(XAI_MODEL),
-    mapOptions: (effort: ReasoningEffort) => ({
-      xai: { reasoningEffort: effort },
-    }),
+    model: () => getXaiClient()(XAI_MODEL),
+    mapOptions: (effort: ReasoningEffort) => ({}), // xAI doesn't support reasoningEffort via Vercel AI SDK yet
   },
   openai: {
-    model: () => openai(OPENAI_MODEL),
+    model: () => getOpenAIClient()(OPENAI_MODEL),
     mapOptions: (effort: ReasoningEffort) => ({
       openai: { reasoningEffort: effort },
     }),
